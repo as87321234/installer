@@ -11,17 +11,6 @@ puppeteer.use(StealthPlugin())
 const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker')
 puppeteer.use(AdblockerPlugin({ blockTrackers: true }))
 
-const args = [
-'--no-sandbox',
-'--no-headless',
-'--disable-setuid-sandbox',
-'--disable-infobars',
-'--window-position=0,0',
-'--ignore-certifcate-errors',
-'--ignore-certifcate-errors-spki-list',
-'--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3312.0 Safari/537.36"'
-];
-
 function run (pagesToScrape) {
     return new Promise(async (resolve, reject) => {
         try {
@@ -29,28 +18,36 @@ function run (pagesToScrape) {
                 pagesToScrape = 1;
             }
 
-	    const browserFetcher = puppeteer.createBrowserFetcher();
-	    let revisionInfo = await browserFetcher.download('938248');
+            const browserFetcher = puppeteer.createBrowserFetcher();
+            let revisionInfo = await browserFetcher.download('938248');
 
-	    const browser = await puppeteer.launch( {  headless: false,
-        args: ["--no-sandbox"] } );
+            var doAction = function () {
+                let test=1;
+                // your function code here
+            }
+            
+            
+
+            const browser = await puppeteer.launch( {  headless: false,
+            args: ["--no-sandbox"] } );
 
             const page = await browser.newPage();
             // Ackknowledge popup request location access
+            
             await page.on('body', async dialog => {
                 console.log('here');
-                await dialog.accept();
+                await dialog.accept();ß
             });
 
             await page.setRequestInterception(true);
 
-            //page.on('request', (request) => {
-                //if (request.resourceType() === 'document') {
-                    //request.continue();
-                //} else {
-                    //request.abort();
-                //}
-            //});
+            // page.on('request', (request) => {
+            //     if (request.resourceType() === 'document') {
+            //         request.continue();
+            //     } else {
+            //         request.abort();
+            //     }
+            // });
 
             await page.goto("https://homehardware.ca/");
             await page.goto("https://www.homehardware.ca/en/thermostats/c/7449");
@@ -60,42 +57,37 @@ function run (pagesToScrape) {
 
             while (currentPage <= pagesToScrape) {
 
-                await page.waitForSelector('.mz-productlisting.datalayer-parent-element.ign-data-product-impression.mz-productlist-tiled');
 
-                let res = await page.evaluate(() => {
 
+                let articleSelector = 'a.mz-productlisting-title.data-layer-productClick';
+                await page.waitForSelector(articleSelector);
+
+                let arrayOfItems = await page.evaluate((articleSelector) => {
+                    
                     let results = [];
-                    let items = document.querySelectorAll('div.mz-productlisting');
 
+                    
+                    const myNodeList = document.querySelectorAll(articleSelector);
+
+                    const myArray = []; // empty Array
+                    for (let i = 0; i < myNodeList.length; i++) {
+                        const self = myNodeList[i];
+                        myArray.push(self.innerHTML);
+                        //console.log(self.innerHTML);
+                    }
+
+                    
+                    return myArray;
+
+                }, articleSelector);
+
+                arrayOfItems.forEach(e => {
+                    
+                    console.log(e);
+                
                 });
 
-                console.log(res);
-
-                let newUrls = await page.evaluate(() => {
-
-                    let results = [];
-                    let items = document.querySelectorAll('div.mz-productlisting');
-
-                    items.forEach((item) => {
-                        results.push({
-                            url:  item.getAttribute('href'),
-                            text: item.innerText,
-                        });
-                    });
-
-                    return results;
-                });
-
-                urls = urls.concat(newUrls);
-
-                if (currentPage < pagesToScrape) {
-                    await Promise.all([
-                        await page.waitForSelector('a.morelink'),
-                        await page.click('a.morelink'),
-                        await page.waitForSelector('a.titlelink')
-                    ])
-                }
-
+                
                 currentPage++;
 
             }
@@ -110,4 +102,4 @@ function run (pagesToScrape) {
         }
     })
 }
-run(5).then(console.log).catch(console.error);
+run(1).then(console.log).catch(console.error);
