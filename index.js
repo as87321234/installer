@@ -1,18 +1,29 @@
 // puppeteer-extra is a drop-in replacement for puppeteer,
 // it augments the installed puppeteer with plugin functionality.
 // Any number of plugins can be added through `puppeteer.use()`
-const puppeteer = require('puppeteer-extra')
+var puppeteer = require('puppeteer-extra')
 
 // Add stealth plugin and use defaults (all tricks to hide puppeteer usage)
-const StealthPlugin = require('puppeteer-extra-plugin-stealth')
+var StealthPlugin = require('puppeteer-extra-plugin-stealth')
 puppeteer.use(StealthPlugin())
 
 // Add adblocker plugin to block all ads and trackers (saves bandwidth)
-const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker')
+var AdblockerPlugin = require('puppeteer-extra-plugin-adblocker')
 puppeteer.use(AdblockerPlugin({ blockTrackers: true }))
 
+const { DOMParser } = require('xmldom')
+
+
+let getProductTitle = function (htmldom) {
+
+    let tagImg = htmldom.getElementsByTagName('img');
+    
+    console.log(tagImg.nodeValue());
+    console.log(htmldom);
+};
+
 function run (pagesToScrape) {
-    return new Promise(async (resolve, reject) => {
+    promise = new Promise(async (resolve, reject) => {
         try {
             if (!pagesToScrape) {
                 pagesToScrape = 1;
@@ -59,7 +70,7 @@ function run (pagesToScrape) {
 
 
 
-                let articleSelector = 'a.mz-productlisting-title.data-layer-productClick';
+                let articleSelector = 'div.mz-productlisting.datalayer-parent-element.ign-data-product-impression.mz-productlist-tiled';
                 await page.waitForSelector(articleSelector);
 
                 let arrayOfItems = await page.evaluate((articleSelector) => {
@@ -76,15 +87,15 @@ function run (pagesToScrape) {
                         //console.log(self.innerHTML);
                     }
 
-                    
                     return myArray;
 
                 }, articleSelector);
 
-                arrayOfItems.forEach(e => {
+                arrayOfItems.forEach(html => {
+
+                    let parsedHtml = new DOMParser().parseFromString(html, 'text/html');
+                    let productTitle = getProductTitle(parsedHtml);
                     
-                    console.log(e);
-                
                 });
 
                 
@@ -101,5 +112,7 @@ function run (pagesToScrape) {
             return reject(e);
         }
     })
+    
+    return promise;
 }
 run(1).then(console.log).catch(console.error);
