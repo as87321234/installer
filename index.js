@@ -1,118 +1,247 @@
 // puppeteer-extra is a drop-in replacement for puppeteer,
 // it augments the installed puppeteer with plugin functionality.
 // Any number of plugins can be added through `puppeteer.use()`
-var puppeteer = require('puppeteer-extra')
+var puppeteer = require("puppeteer-extra");
 
 // Add stealth plugin and use defaults (all tricks to hide puppeteer usage)
-var StealthPlugin = require('puppeteer-extra-plugin-stealth')
-puppeteer.use(StealthPlugin())
+var StealthPlugin = require("puppeteer-extra-plugin-stealth");
+puppeteer.use(StealthPlugin());
 
 // Add adblocker plugin to block all ads and trackers (saves bandwidth)
-var AdblockerPlugin = require('puppeteer-extra-plugin-adblocker')
-puppeteer.use(AdblockerPlugin({ blockTrackers: true }))
+var AdblockerPlugin = require("puppeteer-extra-plugin-adblocker");
+puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
-const { DOMParser } = require('xmldom')
+// Dom Parser
+const { DOMParser } = require("xmldom");
 
-
-let getProductTitle = function (htmldom) {
-
-    let tagImg = htmldom.getElementsByTagName('img');
-    
-    console.log(tagImg.nodeValue());
-    console.log(htmldom);
+/**
+ * Function get host
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let getSiteHostname = function (url) {
+  result = findAttribute(htmldom, "a", "href", 1);
+  return url.replace(" ", "%20");
 };
 
-function run (pagesToScrape) {
-    promise = new Promise(async (resolve, reject) => {
-        try {
-            if (!pagesToScrape) {
-                pagesToScrape = 1;
-            }
+/**
+ * Function replace space with %20
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let replaceSpace = function (url) {
+  return url.replace(" ", "%20");
+};
 
-            const browserFetcher = puppeteer.createBrowserFetcher();
-            let revisionInfo = await browserFetcher.download('938248');
+/**
+ * Function find first attribute from html DOM based on tagname and attribute
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let findByAttributeInnerText = function (
+  htmldom,
+  tagName,
+  propertyMatch,
+  matchpos
+) {
+  let result = "";
 
-            var doAction = function () {
-                let test=1;
-                // your function code here
-            }
-            
-            
+  let tag = Array.from(htmldom.getElementsByTagName(tagName));
+  tag.every((element) => {
+    let indx = 1;
+    let property = propertyMatch.split("=")[0];
+    let value = propertyMatch.split("=")[1];
+    let result = "";
+    let innetText = "";
 
-            const browser = await puppeteer.launch( {  headless: false,
-            args: ["--no-sandbox"] } );
+    result = element.getAttribute(property);
 
-            const page = await browser.newPage();
-            // Ackknowledge popup request location access
-            
-            await page.on('body', async dialog => {
-                console.log('here');
-                await dialog.accept();ß
-            });
+    if (result == value && matchpos == indx) {
+      innerText = element.firstChild.nodeValue;
+      return false;
+    }
+    indx++;
 
-            await page.setRequestInterception(true);
+    return true;
+  });
 
-            // page.on('request', (request) => {
-            //     if (request.resourceType() === 'document') {
-            //         request.continue();
-            //     } else {
-            //         request.abort();
-            //     }
-            // });
+  return innerText;
+};
 
-            await page.goto("https://homehardware.ca/");
-            await page.goto("https://www.homehardware.ca/en/thermostats/c/7449");
+/**
+ * Function return the product Title
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let getProductTitle = function (htmldom) {
+  result = findAttribute(htmldom, "a", "title", 1);
+  console.log("title: " + result);
+  return result;
+};
 
-            let currentPage = 1;
-            let urls = [];
+/**
+ * Function return the product Title
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let getProductImage = function (htmldom) {
+  let tagImg = htmldom.getElementsByTagName("img");
+  return tagImg[1].attribute[0];
+};
 
-            while (currentPage <= pagesToScrape) {
+function run(url) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const browserFetcher = puppeteer.createBrowserFetcher();
+      let revisionInfo = await browserFetcher.download("938248");
 
+      var doAction = function () {
+        let test = 1;
+        // your function code here
+      };
 
+      const browser = await puppeteer.launch({
+        headless: false,
+        args: ["--no-sandbox"],
+      });
 
-                let articleSelector = 'div.mz-productlisting.datalayer-parent-element.ign-data-product-impression.mz-productlist-tiled';
-                await page.waitForSelector(articleSelector);
+      const page = await browser.newPage();
+      // Ackknowledge popup request location access
 
-                let arrayOfItems = await page.evaluate((articleSelector) => {
-                    
-                    let results = [];
+      await page.on("body", async (dialog) => {
+        console.log("here");
+        await dialog.accept();
+        ß;
+      });
 
-                    
-                    const myNodeList = document.querySelectorAll(articleSelector);
+      await page.setRequestInterception(true);
 
-                    const myArray = []; // empty Array
-                    for (let i = 0; i < myNodeList.length; i++) {
-                        const self = myNodeList[i];
-                        myArray.push(self.innerHTML);
-                        //console.log(self.innerHTML);
-                    }
+      // page.on('request', (request) => {
+      //     if (request.resourceType() === 'document') {
+      //         request.continue();
+      //     } else {
+      //         request.abort();
+      //     }
+      // });
 
-                    return myArray;
+      let urls = [];
+      let selector = "html";
 
-                }, articleSelector);
+      let response = await page.goto(url);
+      await page.waitForSelector('html');
 
-                arrayOfItems.forEach(html => {
+      let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
+      let rawhtml = await getHTML(page, selector);
+      let htmldom = getDom(rawhtml);
 
-                    let parsedHtml = new DOMParser().parseFromString(html, 'text/html');
-                    let productTitle = getProductTitle(parsedHtml);
-                    
-                });
+      let pagesToScrape = getProductNumberPages(htmldom);
+      let currentPage = 1;
 
-                
-                currentPage++;
+      while (currentPage <= pagesToScrape) {
+        let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
 
-            }
+        // productDetailPageURLs.forEach( (page, baseurl, url) => {
+        //   await page.goto(baseurl + url)
+        //   let productTitle = getProductTitle(parsedHtml);
+        // });
 
-            browser.close();
+        // let productDesc = getProductDesc(parsedHtml);
+        // let productStar = getProductStar(parsedHtml);
+        // let productRegularPrice = getProductPrice(parsedHtml);
+        // let productCurrentPrice = getProductPrice(parsedHtml);
+        // let productDiscounted = getProductPrice(parsedHtml);
+        // let productUnitCount = getProductPrice(parsedHtml);
+        // let productUnit = getProductPrice(parsedHtml);
+        // let productImgURL = getProductImgURL(parsedHtml);
+        // let productImg = getProductImg(parsedHtml);
+        // let productFetchDate = getProductFetchDate(parsedHtml);
 
-            return resolve(urls);
+        // Load next page
 
-        } catch (e) {
-
-            return reject(e);
+        if (currentPage < pagesToScrape) {
+          let nextPageURL = url + "?startIndex=" + currentPage * 30;
+          await page.goto(nextPageURL);
         }
-    })
-    
-    return promise;
+        currentPage++;
+      }
+
+      browser.close();
+
+      return resolve(urls);
+    } catch (e) {
+      return reject(e);
+    }
+  });
 }
-run(1).then(console.log).catch(console.error);
+
+run("https://www.homehardware.ca/en/thermostats/c/7449")
+  .then(console.log)
+  .catch(console.error);
+
+async function getHTML(page, selector) {
+  return await page.evaluate((selector) => {
+    const myNodeList = document.querySelector(selector);
+
+    return myNodeList.innerHTML;
+  }, selector);
+}
+
+/**
+ * Function get DOM from html
+ * @rawhtml    {object} rawhtml    HTML DOM
+ * @return     {object}            Return product Title
+ */
+function getDom(rawhtml) {
+  let htmldom = new DOMParser().parseFromString(rawhtml, "text/html");
+  return htmldom;
+}
+
+function getProductNumberPages(htmldom) {
+  let innerText = findByAttributeInnerText(
+    htmldom,
+    "span",
+    "class=mobile-navigation",
+    1
+  );
+
+  let numberOfPages = innerText.split(" ")[3];
+
+  console.log("numberOfPages: ", numberOfPages);
+
+  return numberOfPages;
+}
+
+function getProductDetailPageUrls(htmldom ) {
+    partUrls = findNodeByTagnameAttributeValue(htmldom, 'a','class','mz-productlisting-title data-layer-productClick add-ellipsis', 'href')
+    return partUrls;
+}
+/**
+ * Function return the product detailed page
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+function findNodeByTagnameAttributeValue(htmldom, tagName, searchAttribute, searchValue, secondAttribute , pos = 1 ) {
+  elementList = Array.from(htmldom.getElementsByTagName(tagName));
+
+  indx = 1;
+  urls = [];
+  elementList.forEach((node) => {
+    result = node.getAttribute(searchAttribute);
+
+    if (
+      result.includes(
+        searchValue
+      )
+    ) {
+        value = node.getAttribute(secondAttribute);
+        value = replaceSpace(value);
+        urls.push(value);
+    }
+
+
+    //    'a.mz-productlisting-title.data-layer-productClick'));
+  });
+
+  console.log("href: " + urls);
+  return urls;
+}
