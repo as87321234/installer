@@ -102,11 +102,22 @@ function run(url) {
 
       const browser = await puppeteer.launch({
         headless: false,
-        args: ["--no-sandbox"],
+        args: ['--no-sandbox',
+          '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36',
+          '--window-size=1920,1080',
+          '--no-sandbox',
+          '--disable-gpu',
+          '--no-zygote',
+          '--disable-setuid-sandbox',
+          '--disable-accelerated-2d-canvas',
+          '--disable-dev-shm-usage']
       });
+
 
       const page = await browser.newPage();
       // Ackknowledge popup request location access
+      await page.setViewport({ width: 1280, height: 800 })
+      await page.setDefaultNavigationTimeout(30000);
 
       await page.on("body", async (dialog) => {
         console.log("here");
@@ -115,73 +126,70 @@ function run(url) {
       });
 
       await page.setRequestInterception(true);
-
-      // page.on('request', (request) => {
-      //     if (request.resourceType() === 'document') {
-      //         request.continue();
-      //     } else {
-      //         request.abort();
-      //     }
-      // });
-
-      let urls = [];
-      let selector = "html";
-
-      let response = await page.goto(url, {
-        waitUntil: 'networkidle2'
-      });
-    
-      await page.waitForSelector('html');
-
-      let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
-      let rawhtml = await getHTML(page, selector);
-      let htmldom = getDom(rawhtml);
-
-      let pagesToScrape = getProductNumberPages(htmldom);
-      let currentPage = 1;
-
-      while (currentPage <= pagesToScrape) {
-        let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
-
-        // productDetailPageURLs.forEach( (page, baseurl, url) => {
-        //   await page.goto(baseurl + url)
-        //   let productTitle = getProductTitle(parsedHtml);
-        // });
-
-        // let productDesc = getProductDesc(parsedHtml);
-        // let productStar = getProductStar(parsedHtml);
-        // let productRegularPrice = getProductPrice(parsedHtml);
-        // let productCurrentPrice = getProductPrice(parsedHtml);
-        // let productDiscounted = getProductPrice(parsedHtml);
-        // let productUnitCount = getProductPrice(parsedHtml);
-        // let productUnit = getProductPrice(parsedHtml);
-        // let productImgURL = getProductImgURL(parsedHtml);
-        // let productImg = getProductImg(parsedHtml);
-        // let productFetchDate = getProductFetchDate(parsedHtml);
-
-        // Load next page
-
-        if (currentPage < pagesToScrape) {
-        
-          let nextPageURL = url + "?startIndex=" + currentPage * 30;
-          await page.goto(nextPageURL, {
-            waitUntil: 'networkidle2'
-          });
-
-          rawhtml = await getHTML(page, selector);
-          htmldom = getDom(rawhtml);
-    
+      page.on('request', (req) => {
+        if (req.resourceType() === 'image') {
+           await req.abort();
+        } else {
+           await req.continue();
         }
-        currentPage++;
+
+        let urls = [];
+        let selector = "html";
+
+        await page.goto(url);
+        const navigationPromise = await page.waitForNavigation({ waitUntil: ['networkidle0'] })
+
+        await page.waitForResponse(response => response.status() === 200)
+        await page.waitForSelector('html');
+
+        let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
+        let rawhtml = await getHTML(page, selector);
+        let htmldom = getDom(rawhtml);
+
+        let pagesToScrape = getProductNumberPages(htmldom);
+        let currentPage = 1;
+
+        while (currentPage <= pagesToScrape) {
+          let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
+
+          // productDetailPageURLs.forEach( (page, baseurl, url) => {
+          //   await page.goto(baseurl + url)
+          //   let productTitle = getProductTitle(parsedHtml);
+          // });
+
+          // let productDesc = getProductDesc(parsedHtml);
+          // let productStar = getProductStar(parsedHtml);
+          // let productRegularPrice = getProductPrice(parsedHtml);
+          // let productCurrentPrice = getProductPrice(parsedHtml);
+          // let productDiscounted = getProductPrice(parsedHtml);
+          // let productUnitCount = getProductPrice(parsedHtml);
+          // let productUnit = getProductPrice(parsedHtml);
+          // let productImgURL = getProductImgURL(parsedHtml);
+          // let productImg = getProductImg(parsedHtml);
+          // let productFetchDate = getProductFetchDate(parsedHtml);
+
+          // Load next page
+
+          if (currentPage < pagesToScrape) {
+
+            let nextPageURL = url + "?startIndex=" + currentPage * 30;
+            await page.goto(nextPageURL);
+            const navigationPromise = await page.waitForNavigation({ waitUntil: ['networkidle0'] })
+
+            rawhtml = await getHTML(page, selector);
+            htmldom = getDom(rawhtml);
+
+          }
+          currentPage++;
+        }
+
+        browser.close();
+
+        return resolve(urls);
+      } catch (e) {
+        return reject(e);
       }
-
-      browser.close();
-
-      return resolve(urls);
-    } catch (e) {
-      return reject(e);
-    }
-  });
+    });
 }
 
 run("https://www.homehardware.ca/en/thermostats/c/7449")
@@ -221,16 +229,16 @@ function getProductNumberPages(htmldom) {
   return numberOfPages;
 }
 
-function getProductDetailPageUrls(htmldom ) {
-    partUrls = findNodeByTagnameAttributeValue(htmldom, 'a','class','mz-productlisting-title data-layer-productClick add-ellipsis', 'href')
-    return partUrls;
+function getProductDetailPageUrls(htmldom) {
+  partUrls = findNodeByTagnameAttributeValue(htmldom, 'a', 'class', 'mz-productlisting-title data-layer-productClick add-ellipsis', 'href')
+  return partUrls;
 }
 /**
  * Function return the product detailed page
  * @htmldom    {xmldom} name    HTML DOM
  * @return     {String}         Return product Title
  */
-function findNodeByTagnameAttributeValue(htmldom, tagName, searchAttribute, searchValue, secondAttribute , pos = 1 ) {
+function findNodeByTagnameAttributeValue(htmldom, tagName, searchAttribute, searchValue, secondAttribute, pos = 1) {
   elementList = Array.from(htmldom.getElementsByTagName(tagName));
 
   indx = 1;
@@ -243,9 +251,9 @@ function findNodeByTagnameAttributeValue(htmldom, tagName, searchAttribute, sear
         searchValue
       )
     ) {
-        value = node.getAttribute(secondAttribute);
-        value = replaceSpace(value);
-        urls.push(value);
+      value = node.getAttribute(secondAttribute);
+      value = replaceSpace(value);
+      urls.push(value);
     }
 
 
