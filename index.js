@@ -127,7 +127,10 @@ function run(url) {
       let urls = [];
       let selector = "html";
 
-      let response = await page.goto(url);
+      let response = await page.goto(url, {
+        waitUntil: 'networkidle2'
+      });
+    
       await page.waitForSelector('html');
 
       let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
@@ -159,8 +162,15 @@ function run(url) {
         // Load next page
 
         if (currentPage < pagesToScrape) {
+        
           let nextPageURL = url + "?startIndex=" + currentPage * 30;
-          await page.goto(nextPageURL);
+          await page.goto(nextPageURL, {
+            waitUntil: 'networkidle2'
+          });
+
+          rawhtml = await getHTML(page, selector);
+          htmldom = getDom(rawhtml);
+    
         }
         currentPage++;
       }
