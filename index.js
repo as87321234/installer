@@ -128,7 +128,7 @@ function run(url) {
       await page.setRequestInterception(true);
       page.on('request', (req) => {
         if (req.resourceType() === 'image') {
-           await req.abort();
+           req.abort();
         } else {
            await req.continue();
         }
