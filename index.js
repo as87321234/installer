@@ -132,7 +132,7 @@ function run(url) {
       let urls = [];
       let selector = "html";
 
-      const response = await page.goto(url);
+      const response = await page.goto(url, {waitUntil: 'networkidle2'});
       const navigationPromise = await page.waitForSelector('.mobile-navigation');
 
       await page.waitForResponse(response => response.status() === 200)
@@ -149,7 +149,7 @@ function run(url) {
         let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
 
         // productDetailPageURLs.forEach( (page, baseurl, url) => {
-        //   await page.goto(baseurl + url)
+        //   await page.goto(baseurl + url, {waitUntil: 'networkidle2'})
         //   let productTitle = getProductTitle(parsedHtml);
         // });
 
@@ -169,7 +169,7 @@ function run(url) {
         if (currentPage < pagesToScrape) {
 
           let nextPageURL = url + "?startIndex=" + currentPage * 30;
-          const response = await page.goto(nextPageURL);
+          const response = await page.goto(nextPageURL, {waitUntil: 'networkidle2'});
           const navigationPromise = await page.waitForSelector('.mobile-navigation');
           await page.waitForResponse(response => response.status() === 200)
 
