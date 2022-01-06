@@ -120,29 +120,27 @@ function run(url) {
 
       // Ackknowledge popup request location access
       await page.setViewport({ width: 1280, height: 800 })
-      await page.setDefaultNavigationTimeout(30000);
+      await page.setDefaultNavigationTimeout(10000);
 
       // Enable Image Request Interceptor
       await enableImageReqInterceptor(page);
 
       // load page and wait for the 'HTML' tag
-      const response = await getPage(page, url);
+      const response = await getPage(page, url, 'networkidle2');
 
       // get base URL from http response
       let baseurl = getBaseURL(response)
       console.log("baseurl: " + baseurl);
 
-      let getDomResult = {}
-      getDomResult =  await getDOM(page, 'html');
-
-      let pagesToScrape = parseInt(getProductNumberPages(getDomResult.htmldom));
+      let htmldom =  await getDOM(page, 'html');
+      let pagesToScrape = parseInt(getProductNumberPages(htmldom));
       let currentPage = 1;
       let maxRetrial = 3;
       let retrial = 1
 
-      while (currentPage <= pagesToScrape && retrial < maxRetrial) {
-      
-        let productDetailPageURLs = Array.from(getProductDetailPageUrls(getDomResult.htmldom));
+      while (currentPage < pagesToScrape && retrial < maxRetrial) {
+
+        let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
 
         // productDetailPageURLs.forEach( (page, baseurl, url) => {
         //   await page.goto(baseurl + url, {waitUntil: 'networkidle2'}).catch((err) => { console.log(err); });
@@ -162,26 +160,23 @@ function run(url) {
 
         // Load next page
 
-        if (currentPage <= pagesToScrape) {
+        if (currentPage < pagesToScrape) {
 
-          try {
             // Calculate startIndex before fetching next page
             let nextPageURL = url + "?startIndex=" + currentPage * 30;
 
             // load page and wait for the 'HTML' tag
-            const response = await getPage(page, nextPageURL);
-            getDomResult = await getDOM(page, 'html');
+            const response = await getPage(page, nextPageURL, 'load');
+            htmldom = await getDOM(page, 'html');
 
-            currentPage = currentPage + 1;
-
-          } catch {
-            // NOP will try annother iteration
-            retrial = retrial + 1
-          }
 
         }
 
+        currentPage = currentPage + 1;
+
       }
+
+      productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
 
       browser.close();
 
@@ -242,27 +237,33 @@ async function enableEventInterceptor(page, eventType, resType) {
   });
 }
 
-async function getPage(page, url) {
-  let maxRetrial = 3;
+async function getPage(page, url, waitUntil) {
+  let maxRetrial = 6;
   let retrial = 0;
 
   while (retrial < maxRetrial) {
 
-    const response = await page.goto(url, { waitUntil: "networkidle2" });
+    try {
 
-    if (
-      response !== null &&
-      response.status() === 200 &&
-      retrial < maxRetrial
-    ) {
-      const navigationPromise = await page.waitForSelector(
-        ".mobile-navigation"
-      );
+      const response = await page.goto(url, { waitUntil: waitUntil });
 
-      await page.waitForResponse((response) => response.status() === 200);
-      return response;
-    } else {
-      retrial = retrial + 1;
+      if (
+        response !== null &&
+        response.status() === 200 &&
+        retrial < maxRetrial
+      ) {
+        const navigationPromise = await page.waitForSelector(
+          ".mobile-navigation"
+        );
+
+        await page.waitForResponse((response) => response.status() === 200);
+        return response;
+      }
+
+    } catch {
+       // NOP 
+       retrial = retrial + 1;
+       console.log("timeout: " + url)
     }
   }
 
@@ -272,7 +273,7 @@ async function getPage(page, url) {
 async function getDOM(page, selector) {
   let rawhtml = await getHTML(page, selector);
   let htmldom = transformHtmlToDom(rawhtml);
-  return { htmldom: htmldom, rawhtml: rawhtml };
+  return  htmldom;
 }
 
 async function getHTML(page, selector) {
