@@ -1,3 +1,6 @@
+var log4js = require("log4js");
+var logger = log4js.getLogger('');
+
 // puppeteer-extra is a drop-in replacement for puppeteer,
 // it augments the installed puppeteer with plugin functionality.
 // Any number of plugins can be added through `puppeteer.use()`
@@ -90,13 +93,17 @@ let getProductImage = function (htmldom) {
 };
 
 function run(url) {
+
+  logger.level = "debug";
+  logger.debug("Some debug messages");
+
   return new Promise(async (resolve, reject) => {
     try {
       const browserFetcher = puppeteer.createBrowserFetcher();
       let revisionInfo = await browserFetcher.download("938248");
 
       const browser = await puppeteer.launch({
-        headless: true,
+        headless: false,
         args: ['--no-sandbox',
           '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36',
           '--window-size=1920,1080',
@@ -109,7 +116,7 @@ function run(url) {
       });
 
       // Open a new page on the browser
-      const page = await browser.newPage();
+      var page = await browser.newPage();
 
       // Ackknowledge popup request location access
       await page.setViewport({ width: 1280, height: 800 })
@@ -119,23 +126,23 @@ function run(url) {
       await enableImageReqInterceptor(page);
 
       // load page and wait for the 'HTML' tag
-      let selector = "html";
       const response = await getPage(page, url);
 
       // get base URL from http response
       let baseurl = getBaseURL(response)
-
       console.log("baseurl: " + baseurl);
 
-      let { htmldom, rawhtml } = await getDOM(page, selector);
+      let getDomResult = {}
+      getDomResult =  await getDOM(page, 'html');
 
-      let pagesToScrape = getProductNumberPages(htmldom);
+      let pagesToScrape = parseInt(getProductNumberPages(getDomResult.htmldom));
       let currentPage = 1;
       let maxRetrial = 3;
       let retrial = 1
 
-      while (currentPage < pagesToScrape && retrial < maxRetrial) {
-        let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
+      while (currentPage <= pagesToScrape && retrial < maxRetrial) {
+      
+        let productDetailPageURLs = Array.from(getProductDetailPageUrls(getDomResult.htmldom));
 
         // productDetailPageURLs.forEach( (page, baseurl, url) => {
         //   await page.goto(baseurl + url, {waitUntil: 'networkidle2'}).catch((err) => { console.log(err); });
@@ -155,27 +162,25 @@ function run(url) {
 
         // Load next page
 
-        if (currentPage < pagesToScrape) {
+        if (currentPage <= pagesToScrape) {
 
-          let nextPageURL = url + "?startIndex=" + currentPage * 30;
-          const response = await page.goto(nextPageURL, {waitUntil: 'networkidle2'}).catch((err) => { console.log(err); });
+          try {
+            // Calculate startIndex before fetching next page
+            let nextPageURL = url + "?startIndex=" + currentPage * 30;
 
-          if (response != null && response.status() === 200) {
-            const navigationPromise = await page.waitForSelector('.mobile-navigation');
-            await page.waitForResponse(response => response.status() === 200)
+            // load page and wait for the 'HTML' tag
+            const response = await getPage(page, nextPageURL);
+            getDomResult = await getDOM(page, 'html');
 
-            let { htmldom, rawhtml } = await getDOM(page, selector);
-            currentPage++;
+            currentPage = currentPage + 1;
 
-          } else {
-            // Failed wait 10 seconds and try againt
-            console.log("Request failed try a gain in 10 seconds");
-            await page.waitForTimout(10000);
-            retrial=retrial + 1;
-
+          } catch {
+            // NOP will try annother iteration
+            retrial = retrial + 1
           }
-        
+
         }
+
       }
 
       browser.close();
@@ -253,9 +258,8 @@ async function getPage(page, url) {
       const navigationPromise = await page.waitForSelector(
         ".mobile-navigation"
       );
+
       await page.waitForResponse((response) => response.status() === 200);
-      await page.waitForSelector("html");
-      await page.waitForTimeout(10000);
       return response;
     } else {
       retrial = retrial + 1;
@@ -268,7 +272,7 @@ async function getPage(page, url) {
 async function getDOM(page, selector) {
   let rawhtml = await getHTML(page, selector);
   let htmldom = transformHtmlToDom(rawhtml);
-  return { htmldom, rawhtml };
+  return { htmldom: htmldom, rawhtml: rawhtml };
 }
 
 async function getHTML(page, selector) {
