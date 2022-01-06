@@ -140,7 +140,7 @@ function run(url) {
 
       let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
       let rawhtml = await getHTML(page, selector);
-      let htmldom = getDom(rawhtml);
+      let htmldom = transformHtmlToDom(rawhtml);
 
       let pagesToScrape = getProductNumberPages(htmldom);
       let currentPage = 1;
@@ -173,7 +173,7 @@ function run(url) {
           const navigationPromise = await page.waitForSelector('.mobile-navigation');
 
           rawhtml = await getHTML(page, selector);
-          htmldom = getDom(rawhtml);
+          htmldom = transformHtmlToDom(rawhtml);
 
         }
         
@@ -206,7 +206,7 @@ async function getHTML(page, selector) {
  * @rawhtml    {object} rawhtml    HTML DOM
  * @return     {object}            Return product Title
  */
-function getDom(rawhtml) {
+function transformHtmlToDom(rawhtml) {
   let htmldom = new DOMParser().parseFromString(rawhtml, "text/html");
   return htmldom;
 }
