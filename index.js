@@ -1,3 +1,6 @@
+// Enable logger
+var stackify = require('stackify-logger'); 
+
 // puppeteer-extra is a drop-in replacement for puppeteer,
 // it augments the installed puppeteer with plugin functionality.
 // Any number of plugins can be added through `puppeteer.use()`
@@ -122,7 +125,9 @@ function run(url) {
       let selector = "html";
       const response = await getPage(page, url);
 
+      // get base URL from http response
       let baseurl = getBaseURL(response)
+
       console.log("baseurl: " + baseurl);
 
       let { htmldom, rawhtml } = await getDOM(page, selector);
