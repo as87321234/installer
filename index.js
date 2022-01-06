@@ -108,8 +108,9 @@ function run(url) {
           '--disable-dev-shm-usage']
       });
 
-
+      // Open a new page on the browser
       const page = await browser.newPage();
+
       // Ackknowledge popup request location access
       await page.setViewport({ width: 1280, height: 800 })
       await page.setDefaultNavigationTimeout(30000);
@@ -117,9 +118,8 @@ function run(url) {
       // Enable Image Request Interceptor
       await enableImageReqInterceptor(page);
 
-      let urls = [];
+      // load page and wait for the 'HTML' tag
       let selector = "html";
-
       const response = await getPage(page, url);
 
       let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
