@@ -119,77 +119,74 @@ function run(url) {
       await page.setViewport({ width: 1280, height: 800 })
       await page.setDefaultNavigationTimeout(30000);
 
-      await page.on("body", async (dialog) => {
-        console.log("here");
-        await dialog.accept();
-        ß;
-      });
-
+      page.removeAllListeners("request");
       await page.setRequestInterception(true);
       page.on('request', (req) => {
         if (req.resourceType() === 'image') {
-           req.abort();
+          req.abort();
         } else {
-           await req.continue();
+          req.continue();
         }
+      });
 
-        let urls = [];
-        let selector = "html";
+      let urls = [];
+      let selector = "html";
 
-        await page.goto(url);
-        const navigationPromise = await page.waitForNavigation({ waitUntil: ['networkidle0'] })
+      const response = await page.goto(url);
+      const navigationPromise = await page.waitForSelector('.mobile-navigation');
 
-        await page.waitForResponse(response => response.status() === 200)
-        await page.waitForSelector('html');
+      await page.waitForResponse(response => response.status() === 200)
+      await page.waitForSelector('html');
 
-        let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
-        let rawhtml = await getHTML(page, selector);
-        let htmldom = getDom(rawhtml);
+      let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
+      let rawhtml = await getHTML(page, selector);
+      let htmldom = getDom(rawhtml);
 
-        let pagesToScrape = getProductNumberPages(htmldom);
-        let currentPage = 1;
+      let pagesToScrape = getProductNumberPages(htmldom);
+      let currentPage = 1;
 
-        while (currentPage <= pagesToScrape) {
-          let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
+      while (currentPage <= pagesToScrape) {
+        let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
 
-          // productDetailPageURLs.forEach( (page, baseurl, url) => {
-          //   await page.goto(baseurl + url)
-          //   let productTitle = getProductTitle(parsedHtml);
-          // });
+        // productDetailPageURLs.forEach( (page, baseurl, url) => {
+        //   await page.goto(baseurl + url)
+        //   let productTitle = getProductTitle(parsedHtml);
+        // });
 
-          // let productDesc = getProductDesc(parsedHtml);
-          // let productStar = getProductStar(parsedHtml);
-          // let productRegularPrice = getProductPrice(parsedHtml);
-          // let productCurrentPrice = getProductPrice(parsedHtml);
-          // let productDiscounted = getProductPrice(parsedHtml);
-          // let productUnitCount = getProductPrice(parsedHtml);
-          // let productUnit = getProductPrice(parsedHtml);
-          // let productImgURL = getProductImgURL(parsedHtml);
-          // let productImg = getProductImg(parsedHtml);
-          // let productFetchDate = getProductFetchDate(parsedHtml);
+        // let productDesc = getProductDesc(parsedHtml);
+        // let productStar = getProductStar(parsedHtml);
+        // let productRegularPrice = getProductPrice(parsedHtml);
+        // let productCurrentPrice = getProductPrice(parsedHtml);
+        // let productDiscounted = getProductPrice(parsedHtml);
+        // let productUnitCount = getProductPrice(parsedHtml);
+        // let productUnit = getProductPrice(parsedHtml);
+        // let productImgURL = getProductImgURL(parsedHtml);
+        // let productImg = getProductImg(parsedHtml);
+        // let productFetchDate = getProductFetchDate(parsedHtml);
 
-          // Load next page
+        // Load next page
 
-          if (currentPage < pagesToScrape) {
+        if (currentPage < pagesToScrape) {
 
-            let nextPageURL = url + "?startIndex=" + currentPage * 30;
-            await page.goto(nextPageURL);
-            const navigationPromise = await page.waitForNavigation({ waitUntil: ['networkidle0'] })
+          let nextPageURL = url + "?startIndex=" + currentPage * 30;
+          await page.goto(nextPageURL);
+          const navigationPromise = await page.waitForSelector('.mobile-navigation');
 
-            rawhtml = await getHTML(page, selector);
-            htmldom = getDom(rawhtml);
+          rawhtml = await getHTML(page, selector);
+          htmldom = getDom(rawhtml);
 
-          }
-          currentPage++;
+        }
+        
+        currentPage++;
         }
 
         browser.close();
 
-        return resolve(urls);
-      } catch (e) {
+        return resolve("");
+    } catch (e) {
         return reject(e);
-      }
-    });
+    }
+  });
 }
 
 run("https://www.homehardware.ca/en/thermostats/c/7449")
