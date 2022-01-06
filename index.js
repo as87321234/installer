@@ -119,15 +119,8 @@ function run(url) {
       await page.setViewport({ width: 1280, height: 800 })
       await page.setDefaultNavigationTimeout(30000);
 
-      page.removeAllListeners("request");
-      await page.setRequestInterception(true);
-      page.on('request', (req) => {
-        if (req.resourceType() === 'image') {
-          req.abort();
-        } else {
-          req.continue();
-        }
-      });
+      // Enable Image Request Interceptor
+      await enableImageReqInterceptor(page);
 
       let urls = [];
       let selector = "html";
@@ -201,6 +194,39 @@ function run(url) {
 run("https://www.homehardware.ca/en/thermostats/c/7449")
   .then(console.log)
   .catch(console.error);
+
+/**
+ * This function enables a request call stop interceptor 
+ * for image.
+ * 
+ * @param {*} page 
+ * 
+ */
+async function enableImageReqInterceptor(page) {
+  const eventType = 'request';
+  const resType = ['image'];
+
+  await enableEventInterceptor(page, eventType, resType);
+}
+
+/**
+ * This function enables a eventType and resource type interceptor 
+ * @param {*} page 
+ * @param {*} eventType 
+ * @param {*} resType 
+ */
+
+async function enableEventInterceptor(page, eventType, resType) {
+  page.removeAllListeners();
+  await page.setRequestInterception(true);
+  page.on(eventType, (req) => {
+    if (req.resourceType().includes(resType)) {
+      req.abort();
+    } else {
+      req.continue();
+    }
+  });
+}
 
 async function getPage(page, url) {
   let maxRetrial = 3;
