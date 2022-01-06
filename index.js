@@ -169,8 +169,9 @@ function run(url) {
         if (currentPage < pagesToScrape) {
 
           let nextPageURL = url + "?startIndex=" + currentPage * 30;
-          await page.goto(nextPageURL);
+          const response = await page.goto(nextPageURL);
           const navigationPromise = await page.waitForSelector('.mobile-navigation');
+          await page.waitForResponse(response => response.status() === 200)
 
           rawhtml = await getHTML(page, selector);
           htmldom = transformHtmlToDom(rawhtml);
