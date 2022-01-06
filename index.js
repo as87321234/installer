@@ -122,7 +122,7 @@ function run(url) {
       let selector = "html";
       const response = await getPage(page, url);
 
-      let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
+      let baseurl = getBaseURL(response)
       console.log("baseurl: " + baseurl);
 
       let { htmldom, rawhtml } = await getDOM(page, selector);
@@ -189,6 +189,18 @@ function run(url) {
 run("https://www.homehardware.ca/en/thermostats/c/7449")
   .then(console.log)
   .catch(console.error);
+
+
+/**
+ * This function returns the base site url from the 
+ * http response.
+ * 
+ * @param {*} response 
+ * @returns 
+ */
+function getBaseURL(response) {
+  return response.url().split("/")[0] + "//" + response.url().split("/")[2];
+}
 
 /**
  * This function enables a request call stop interceptor 
