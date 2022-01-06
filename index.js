@@ -1,6 +1,3 @@
-// Enable logger
-var stackify = require('stackify-logger'); 
-
 // puppeteer-extra is a drop-in replacement for puppeteer,
 // it augments the installed puppeteer with plugin functionality.
 // Any number of plugins can be added through `puppeteer.use()`
