@@ -95,11 +95,6 @@ function run(url) {
       const browserFetcher = puppeteer.createBrowserFetcher();
       let revisionInfo = await browserFetcher.download("938248");
 
-      var doAction = function () {
-        let test = 1;
-        // your function code here
-      };
-
       const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox',
