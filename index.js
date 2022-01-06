@@ -101,7 +101,7 @@ function run(url) {
       };
 
       const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         args: ['--no-sandbox',
           '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36',
           '--window-size=1920,1080',
@@ -132,24 +132,23 @@ function run(url) {
       let urls = [];
       let selector = "html";
 
-      const response = await page.goto(url, {waitUntil: 'networkidle2'});
-      const navigationPromise = await page.waitForSelector('.mobile-navigation');
-
-      await page.waitForResponse(response => response.status() === 200)
-      await page.waitForSelector('html');
+      const response = await getPage(page, url);
 
       let baseurl = response.url().split("/")[0] + "//" + response.url().split("/")[2]
-      let rawhtml = await getHTML(page, selector);
-      let htmldom = transformHtmlToDom(rawhtml);
+      console.log("baseurl: " + baseurl);
+
+      let { htmldom, rawhtml } = await getDOM(page, selector);
 
       let pagesToScrape = getProductNumberPages(htmldom);
       let currentPage = 1;
+      let maxRetrial = 3;
+      let retrial = 1
 
-      while (currentPage <= pagesToScrape) {
+      while (currentPage < pagesToScrape && retrial < maxRetrial) {
         let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
 
         // productDetailPageURLs.forEach( (page, baseurl, url) => {
-        //   await page.goto(baseurl + url, {waitUntil: 'networkidle2'})
+        //   await page.goto(baseurl + url, {waitUntil: 'networkidle2'}).catch((err) => { console.log(err); });
         //   let productTitle = getProductTitle(parsedHtml);
         // });
 
@@ -169,30 +168,73 @@ function run(url) {
         if (currentPage < pagesToScrape) {
 
           let nextPageURL = url + "?startIndex=" + currentPage * 30;
-          const response = await page.goto(nextPageURL, {waitUntil: 'networkidle2'});
-          const navigationPromise = await page.waitForSelector('.mobile-navigation');
-          await page.waitForResponse(response => response.status() === 200)
+          const response = await page.goto(nextPageURL, {waitUntil: 'networkidle2'}).catch((err) => { console.log(err); });
 
-          rawhtml = await getHTML(page, selector);
-          htmldom = transformHtmlToDom(rawhtml);
+          if (response != null && response.status() === 200) {
+            const navigationPromise = await page.waitForSelector('.mobile-navigation');
+            await page.waitForResponse(response => response.status() === 200)
 
-        }
+            let { htmldom, rawhtml } = await getDOM(page, selector);
+            currentPage++;
+
+          } else {
+            // Failed wait 10 seconds and try againt
+            console.log("Request failed try a gain in 10 seconds");
+            await page.waitForTimout(10000);
+            retrial=retrial + 1;
+
+          }
         
-        currentPage++;
         }
+      }
 
-        browser.close();
+      browser.close();
 
-        return resolve("");
+      return resolve("");
     } catch (e) {
-        return reject(e);
+      return reject(e);
     }
+
   });
 }
 
 run("https://www.homehardware.ca/en/thermostats/c/7449")
   .then(console.log)
   .catch(console.error);
+
+async function getPage(page, url) {
+  let maxRetrial = 3;
+  let retrial = 0;
+
+  while (retrial < maxRetrial) {
+
+    const response = await page.goto(url, { waitUntil: "networkidle2" });
+
+    if (
+      response !== null &&
+      response.status() === 200 &&
+      retrial < maxRetrial
+    ) {
+      const navigationPromise = await page.waitForSelector(
+        ".mobile-navigation"
+      );
+      await page.waitForResponse((response) => response.status() === 200);
+      await page.waitForSelector("html");
+      await page.waitForTimeout(10000);
+      return response;
+    } else {
+      retrial = retrial + 1;
+    }
+  }
+
+  return null;
+}
+
+async function getDOM(page, selector) {
+  let rawhtml = await getHTML(page, selector);
+  let htmldom = transformHtmlToDom(rawhtml);
+  return { htmldom, rawhtml };
+}
 
 async function getHTML(page, selector) {
   return await page.evaluate((selector) => {
@@ -228,7 +270,13 @@ function getProductNumberPages(htmldom) {
 }
 
 function getProductDetailPageUrls(htmldom) {
-  partUrls = findNodeByTagnameAttributeValue(htmldom, 'a', 'class', 'mz-productlisting-title data-layer-productClick add-ellipsis', 'href')
+  partUrls = findNodeByTagnameAttributeValue(
+    htmldom,
+    "a",
+    "class",
+    "mz-productlisting-title data-layer-productClick add-ellipsis",
+    "href"
+  );
   return partUrls;
 }
 /**
@@ -236,7 +284,14 @@ function getProductDetailPageUrls(htmldom) {
  * @htmldom    {xmldom} name    HTML DOM
  * @return     {String}         Return product Title
  */
-function findNodeByTagnameAttributeValue(htmldom, tagName, searchAttribute, searchValue, secondAttribute, pos = 1) {
+function findNodeByTagnameAttributeValue(
+  htmldom,
+  tagName,
+  searchAttribute,
+  searchValue,
+  secondAttribute,
+  pos = 1
+) {
   elementList = Array.from(htmldom.getElementsByTagName(tagName));
 
   indx = 1;
@@ -244,16 +299,11 @@ function findNodeByTagnameAttributeValue(htmldom, tagName, searchAttribute, sear
   elementList.forEach((node) => {
     result = node.getAttribute(searchAttribute);
 
-    if (
-      result.includes(
-        searchValue
-      )
-    ) {
+    if (result.includes(searchValue)) {
       value = node.getAttribute(secondAttribute);
       value = replaceSpace(value);
       urls.push(value);
     }
-
 
     //    'a.mz-productlisting-title.data-layer-productClick'));
   });
