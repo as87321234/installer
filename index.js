@@ -95,7 +95,8 @@ function run(url) {
             let nextPageURL = url + "?startIndex=" + currentPage * 30;
 
             // load page and wait for the 'HTML' tag
-            const response = await getPage(page, nextPageURL, 'load');
+            // const response = await getPage(page, nextPageURL, 'networkidle2');
+            const response = await getPage(page, nextPageURL);
             htmldom = await getDOM(page, 'html');
 
 
