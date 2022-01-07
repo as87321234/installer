@@ -32,7 +32,7 @@ function run(url) {
       let revisionInfo = await browserFetcher.download("938248");
 
       const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         args: ['--no-sandbox',
           '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36',
           '--window-size=1920,1080',
