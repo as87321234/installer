@@ -175,6 +175,8 @@ async function getPage(page, url, waitUntil) {
     try {
 
       const response = await page.goto(url, { waitUntil: waitUntil });
+      // const lastPosition = await scrollPageToBottom(page, {
+      //   size: 500,
 
       if (
         response !== null &&
@@ -200,17 +202,25 @@ async function getPage(page, url, waitUntil) {
 }
 
 async function getDOM(page, selector) {
+
   let rawhtml = await getHTML(page, selector);
   let htmldom = transformHtmlToDom(rawhtml);
   return  htmldom;
 }
 
 async function getHTML(page, selector) {
-  return await page.evaluate((selector) => {
-    const myNodeList = document.querySelector(selector);
 
-    return myNodeList.innerHTML;
+  let rawhtml = await page.evaluate((selector) => {
+    const myNodeList = document.querySelector(selector);
+    let rawhtml = myNodeList.innerHTML;
+    return rawhtml;
+
   }, selector);
+
+  // console.log(beautify.html(rawhtml));
+
+  return rawhtml;
+
 }
 
 /**
