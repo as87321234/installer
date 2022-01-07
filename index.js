@@ -16,83 +16,10 @@ puppeteer.use(StealthPlugin());
 var AdblockerPlugin = require("puppeteer-extra-plugin-adblocker");
 puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
+
 // Dom Parser
 const { DOMParser } = require("xmldom");
 
-/**
- * Function get host
- * @htmldom    {xmldom} name    HTML DOM
- * @return     {String}         Return product Title
- */
-let getSiteHostname = function (url) {
-  result = findAttribute(htmldom, "a", "href", 1);
-  return url.replace(" ", "%20");
-};
-
-/**
- * Function replace space with %20
- * @htmldom    {xmldom} name    HTML DOM
- * @return     {String}         Return product Title
- */
-let replaceSpace = function (url) {
-  return url.replace(" ", "%20");
-};
-
-/**
- * Function find first attribute from html DOM based on tagname and attribute
- * @htmldom    {xmldom} name    HTML DOM
- * @return     {String}         Return product Title
- */
-let findByAttributeInnerText = function (
-  htmldom,
-  tagName,
-  propertyMatch,
-  matchpos
-) {
-  let result = "";
-
-  let tag = Array.from(htmldom.getElementsByTagName(tagName));
-  tag.every((element) => {
-    let indx = 1;
-    let property = propertyMatch.split("=")[0];
-    let value = propertyMatch.split("=")[1];
-    let result = "";
-    let innetText = "";
-
-    result = element.getAttribute(property);
-
-    if (result == value && matchpos == indx) {
-      innerText = element.firstChild.nodeValue;
-      return false;
-    }
-    indx++;
-
-    return true;
-  });
-
-  return innerText;
-};
-
-/**
- * Function return the product Title
- * @htmldom    {xmldom} name    HTML DOM
- * @return     {String}         Return product Title
- */
-let getProductTitle = function (htmldom) {
-  result = findAttribute(htmldom, "a", "title", 1);
-  console.log("title: " + result);
-  return result;
-};
-
-/**
- * Function return the product Title
- * @htmldom    {xmldom} name    HTML DOM
- * @return     {String}         Return product Title
- */
-let getProductImage = function (htmldom) {
-  let tagImg = htmldom.getElementsByTagName("img");
-  return tagImg[1].attribute[0];
-};
 
 function run(url) {
 
@@ -353,3 +280,79 @@ function findNodeByTagnameAttributeValue(
   console.log("href: " + urls);
   return urls;
 }
+
+/**
+ * Function get host
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+ let getSiteHostname = function (url) {
+  result = findAttribute(htmldom, "a", "href", 1);
+  return url.replace(" ", "%20");
+};
+
+/**
+ * Function replace space with %20
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let replaceSpace = function (url) {
+  return url.replace(" ", "%20");
+};
+
+/**
+ * Function find first attribute from html DOM based on tagname and attribute
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let findByAttributeInnerText = function (
+  htmldom,
+  tagName,
+  propertyMatch,
+  matchpos
+) {
+  let result = "";
+
+  let tag = Array.from(htmldom.getElementsByTagName(tagName));
+  tag.every((element) => {
+    let indx = 1;
+    let property = propertyMatch.split("=")[0];
+    let value = propertyMatch.split("=")[1];
+    let result = "";
+    let innetText = "";
+
+    result = element.getAttribute(property);
+
+    if (result == value && matchpos == indx) {
+      innerText = element.firstChild.nodeValue;
+      return false;
+    }
+    indx++;
+
+    return true;
+  });
+
+  return innerText;
+};
+
+/**
+ * Function return the product Title
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let getProductTitle = function (htmldom) {
+  result = findAttribute(htmldom, "a", "title", 1);
+  console.log("title: " + result);
+  return result;
+};
+
+/**
+ * Function return the product Title
+ * @htmldom    {xmldom} name    HTML DOM
+ * @return     {String}         Return product Title
+ */
+let getProductImage = function (htmldom) {
+  let tagImg = htmldom.getElementsByTagName("img");
+  return tagImg[1].attribute[0];
+};
+
