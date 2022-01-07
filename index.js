@@ -1,6 +1,8 @@
 var log4js = require("log4js");
 var logger = log4js.getLogger('');
 
+const beautify = require('simply-beautiful');
+
 // puppeteer-extra is a drop-in replacement for puppeteer,
 // it augments the installed puppeteer with plugin functionality.
 // Any number of plugins can be added through `puppeteer.use()`
