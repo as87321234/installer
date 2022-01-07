@@ -45,7 +45,7 @@ function run(url) {
       });
 
       // Open a new page on the browser
-      var page = await browser.newPage();
+      let page = await browser.newPage();
 
       // Ackknowledge popup request location access
       await page.setViewport({ width: 1280, height: 800 })
@@ -55,7 +55,7 @@ function run(url) {
       await enableImageReqInterceptor(page);
 
       // load page and wait for the 'HTML' tag
-      const response = await getPage(page, url, 'networkidle2');
+      const response = await getPage(page, url, 'load',".mobile-navigation" );
 
       // get base URL from http response
       let baseurl = getBaseURL(response)
@@ -71,10 +71,14 @@ function run(url) {
 
         let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
 
-        // productDetailPageURLs.forEach( (page, baseurl, url) => {
-        //   await page.goto(baseurl + url, {waitUntil: 'networkidle2'}).catch((err) => { console.log(err); });
-        //   let productTitle = getProductTitle(parsedHtml);
-        // });
+
+        for (let i = 0; i < productDetailPageURLs.length ; i++) {
+          // load page and wait for the 'HTML' tag
+          const response = await getPage (page, baseurl + productDetailPageURLs[i], 'load',".product-information.prod-info-new-layout");
+          const htmldom = getDOM(page,'html');
+          // let productTitle = getProductTitle(parsedHtml);
+
+        }
 
         // let productDesc = getProductDesc(parsedHtml);
         // let productStar = getProductStar(parsedHtml);
@@ -96,7 +100,7 @@ function run(url) {
 
             // load page and wait for the 'HTML' tag
             // const response = await getPage(page, nextPageURL, 'networkidle2');
-            const response = await getPage(page, nextPageURL);
+            const response = await getPage(baseurl + page, nextPageURL, 'load', ".mobile-navigation");
             htmldom = await getDOM(page, 'html');
 
 
@@ -167,17 +171,17 @@ async function enableEventInterceptor(page, eventType, resType) {
   });
 }
 
-async function getPage(page, url, waitUntil) {
+async function getPage(page, url, waitUntil, selector) {
   let maxRetrial = 6;
   let retrial = 0;
 
+  console.log("Loading page: " +  url);
   while (retrial < maxRetrial) {
 
     try {
 
       const response = await page.goto(url, { waitUntil: waitUntil });
-      // const lastPosition = await scrollPageToBottom(page, {
-      //   size: 500,
+      await page.waitForTimeout(3000);
 
       if (
         response !== null &&
@@ -185,7 +189,7 @@ async function getPage(page, url, waitUntil) {
         retrial < maxRetrial
       ) {
         const navigationPromise = await page.waitForSelector(
-          ".mobile-navigation"
+          selector
         );
 
         await page.waitForResponse((response) => response.status() === 200);
