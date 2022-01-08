@@ -83,31 +83,8 @@ function run(url) {
           getProductDetailPageUrls(htmldom)
         );
 
-        for (let i = 0; i < productDetailPageURLs.length; i++) {
-          // load page and wait for the 'HTML' tag
-          const response = await getPage(
-            page,
-            productDetailPageURLs[i],
-            "load",
-            "html"
-          );
-          const htmldom = await getDOM(page);
-          const productTitle = getProductTitle(htmldom);
-          const productDesc = getProductDesc(htmldom);
-          stats['getPage'] = stats['getPage'] + 1;
+        await processItems(productDetailPageURLs, page);
 
-          console.log(stats);
-        }
-
-        // let productStar = getProductStar(parsedHtml);
-        // let productRegularPrice = getProductPrice(parsedHtml);
-        // let productCurrentPrice = getProductPrice(parsedHtml);
-        // let productDiscounted = getProductPrice(parsedHtml);
-        // let productUnitCount = getProductPrice(parsedHtml);
-        // let productUnit = getProductPrice(parsedHtml);
-        // let productImgURL = getProductImgURL(parsedHtml);
-        // let productImg = getProductImg(parsedHtml);
-        // let productFetchDate = getProductFetchDate(parsedHtml);
 
         // Load next page
 
@@ -115,21 +92,23 @@ function run(url) {
           // Calculate startIndex before fetching next page
           let nextPageURL = url + "?startIndex=" + currentPage * 30;
 
+
+
           // load page and wait for the 'HTML' tag
-          // const response = await getPage(page, nextPageURL, 'networkidle2');
-          const response = await getPage(
-            baseurl + page,
-            nextPageURL,
-            "load",
-            ".mobile-navigation"
-          );
+          const response = await getPage(page, nextPageURL, "load", ".mobile-navigation");
+          stats['getPage'] = stats['getPage'] + 1;
+
           htmldom = await getDOM(page);
+
         }
 
         currentPage = currentPage + 1;
       }
 
-      productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
+      let productDetailPageURLs = Array.from(
+        getProductDetailPageUrls(htmldom)
+      );
+      await processItems(productDetailPageURLs, page);
 
       browser.close();
 
@@ -143,6 +122,37 @@ function run(url) {
 run("https://www.homehardware.ca/en/thermostats/c/7449")
   .then(console.log)
   .catch(console.error);
+
+async function processItems(productDetailPageURLs, page) {
+
+  for (let i = 0; i < productDetailPageURLs.length; i++) {
+    // load page and wait for the 'HTML' tag
+    const response = await getPage(
+      page,
+      productDetailPageURLs[i],
+      "load",
+      "html"
+    );
+    const htmldom = await getDOM(page);
+    const productTitle = getProductTitle(htmldom);
+    const productDesc = getProductDesc(htmldom);
+    stats['getPage'] = stats['getPage'] + 1;
+
+    console.log(stats);
+
+  }
+
+  // let productStar = getProductStar(parsedHtml);
+  // let productRegularPrice = getProductPrice(parsedHtml);
+  // let productCurrentPrice = getProductPrice(parsedHtml);
+  // let productDiscounted = getProductPrice(parsedHtml);
+  // let productUnitCount = getProductPrice(parsedHtml);
+  // let productUnit = getProductPrice(parsedHtml);
+  // let productImgURL = getProductImgURL(parsedHtml);
+  // let productImg = getProductImg(parsedHtml);
+  // let productFetchDate = getProductFetchDate(parsedHtml);
+
+}
 
 /**
  * This function returns the base site url from the
@@ -192,6 +202,7 @@ async function getPage(page, url, waitUntil, selector) {
   let maxRetrial = 6;
   let retrial = 0;
 
+  console.log("");
   console.log("Loading page: " + url);
   while (retrial < maxRetrial) {
     try {
