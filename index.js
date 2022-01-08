@@ -19,9 +19,16 @@ puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 // Dom Parser
 const { DOMParser } = require("xmldom");
+var XMLSerializer = require('xmlserializer');
 
 // HTML to Text Converter
-const { convert } = require('html-to-text');
+// There is also an alias to `convert` called `htmlToText`.
+const { htmlToText } = require('html-to-text');
+
+
+// Statics 
+var stats = {'getPage': 0, 'getDom': 0};
+
 
 function run(url) {
   logger.level = "debug";
@@ -59,6 +66,7 @@ function run(url) {
 
       // load page and wait for the 'HTML' tag
       const response = await getPage(page, url, "load", ".mobile-navigation");
+      stats['getPage'] = stats['getPage'] + 1;
 
       // get base URL from http response
       baseurl = getBaseURL(response);
@@ -85,8 +93,11 @@ function run(url) {
           );
           const htmldom = await getDOM(page);
           const productTitle = getProductTitle(htmldom);
-          const productDesc  = getProductDesc(htmldom);
-      }
+          const productDesc = getProductDesc(htmldom);
+          stats['getPage'] = stats['getPage'] + 1;
+
+          console.log(stats);
+        }
 
         // let productStar = getProductStar(parsedHtml);
         // let productRegularPrice = getProductPrice(parsedHtml);
@@ -218,11 +229,11 @@ async function getHTML(page) {
   let rawhtml = null;
 
   try {
-    rawhtml = await page.evaluate( () => {
+    rawhtml = await page.evaluate(() => {
       const myNodeList = document.querySelector('html');
       const html = myNodeList.innerHTML;
       return html;
-  });
+    });
 
     // let rawhtml = await page.evaluate(() => {
     //   const myNodeList = document.querySelector('html');
@@ -277,27 +288,27 @@ function getProductDetailPageUrls(htmldom) {
 
     classAttr = node.getAttribute('class');
 
-    if (classAttr.includes(classSelector)) {  
+    if (classAttr.includes(classSelector)) {
       url = node.getAttribute('href');
       url = replaceSpace(url);
       urlList.push(baseurl + url);
     };
 
   });
-  
-  return urlList; 
+
+  return urlList;
 }
 /**
  * Function return the product detailed page
  * @htmldom    {xmldom} name    HTML DOM
  * @return     {String}         Return product Title
  */
- function findNodeByTagnameAttributeValue(
+function findNodeByTagnameAttributeValue(
   htmldom,
   tagName,
-  ) {
-    nodeList = Array.from(htmldom.getElementsByTagName(tagName));
-    return nodeList;
+) {
+  nodeList = Array.from(htmldom.getElementsByTagName(tagName));
+  return nodeList;
 };
 
 /**
@@ -360,7 +371,7 @@ let findByAttributeInnerText = function (
  * @return     {String}         Return product Title
  */
 
- async function getProductTitle(htmldom) {
+async function getProductTitle(htmldom) {
   const nodeList = findNodeByTagnameAttributeValue(
     htmldom,
     "h1"
@@ -382,28 +393,30 @@ let findByAttributeInnerText = function (
  * @returns 
  */
 async function getProductDesc(htmldom) {
+
+  // Select all DIV from HTML document
   const nodeList = findNodeByTagnameAttributeValue(
     htmldom,
     "div"
   );
 
-
-  nodeList.forEach( node => {
+  // Select "description-container section-margin" 
+  let description = null;
+  nodeList.every(node => {
 
     if (node.getAttribute('class') == 'description-container section-margin') {
-        console.log('found');
+      const serializedNode = XMLSerializer.serializeToString(node);
+      description =  htmlToText(serializedNode, {
+        wordwrap: 130
+      });
+      return false;
     };
-
-
+    return true;
   });
-  const brandName = (nodeList[0].firstChild.nextSibling.childNodes[0].data).trim();
-  const subTtile = (nodeList[0].lastChild.data).trim();
+  
+  console.log("Product Description: " + description);
 
-  const title = brandName + " " + subTtile;
-
-  console.log("Product Title: " + title);
-
-  return title;
+  return description;
 }
 
 /**
