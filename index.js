@@ -19,16 +19,14 @@ puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 // Dom Parser
 const { DOMParser } = require("xmldom");
-var XMLSerializer = require('xmlserializer');
+var XMLSerializer = require("xmlserializer");
 
 // HTML to Text Converter
 // There is also an alias to `convert` called `htmlToText`.
-const { htmlToText } = require('html-to-text');
+const { htmlToText } = require("html-to-text");
 
-
-// Statics 
-var stats = {'getPage': 0, 'getDom': 0};
-
+// Statics
+var stats = { getPage: 0, getDom: 0 };
 
 function run(urls) {
   logger.level = "debug";
@@ -40,7 +38,7 @@ function run(urls) {
       let revisionInfo = await browserFetcher.download("938248");
 
       const browser = await puppeteer.launch({
-        headless: true,
+        headless: false,
         args: [
           "--no-sandbox",
           "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
@@ -65,11 +63,10 @@ function run(urls) {
       await enableImageReqInterceptor(page);
 
       // load page and wait for the 'HTML' tag
-      Array.from(urls).forEach(url => {
-        await processPage(page, url);
+      for (let i = 0; i < urls.length; i++) {
+        await processPage(page, urls[i]);
         console.log(url);
-      });
-
+      }
 
       browser.close();
 
@@ -80,57 +77,59 @@ function run(urls) {
   });
 }
 
-run( ["https://www.homehardware.ca/en/thermostats/c/7449", "https://www.homehardware.ca/en/power-tools/c/1525535417299" ])
+run([
+  "https://www.homehardware.ca/en/thermostats/c/7449",
+  "https://www.homehardware.ca/en/power-tools/c/1525535417299",
+])
   .then(console.log)
   .catch(console.error);
 
 async function processPage(page, url) {
-  const response = await getPage(page, url, "load", ".mobile-navigation");
-  stats['getPage'] = stats['getPage'] + 1;
+  try {
+    const response = await getPage(page, url, "load", ".mobile-navigation");
+    stats["getPage"] = stats["getPage"] + 1;
 
-  // get base URL from http response
-  baseurl = getBaseURL(response);
-  console.log("baseurl: " + baseurl);
+    // get base URL from http response
+    baseurl = getBaseURL(response);
+    console.log("baseurl: " + baseurl);
 
+    let htmldom = await getDOM(page);
+    let pagesToScrape = parseInt(getProductNumberPages(htmldom));
+    let currentPage = 1;
 
-  let htmldom = await getDOM(page);
-  let pagesToScrape = parseInt(getProductNumberPages(htmldom));
-  let currentPage = 1;
+    while (currentPage < pagesToScrape) {
+      let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
 
-  while (currentPage < pagesToScrape) {
-    let productDetailPageURLs = Array.from(
-      getProductDetailPageUrls(htmldom)
-    );
+      await processItems(productDetailPageURLs, page);
 
-    await processItems(productDetailPageURLs, page);
+      // Load next page
+      if (currentPage < pagesToScrape) {
+        // Calculate startIndex before fetching next page
+        let nextPageURL = url + "?startIndex=" + currentPage * 30;
 
+        // load page and wait for the 'HTML' tag
+        const response = await getPage(
+          page,
+          nextPageURL,
+          "load",
+          ".mobile-navigation"
+        );
+        stats["getPage"] = stats["getPage"] + 1;
 
-    // Load next page
-    if (currentPage < pagesToScrape) {
-      // Calculate startIndex before fetching next page
-      let nextPageURL = url + "?startIndex=" + currentPage * 30;
+        htmldom = await getDOM(page);
+      }
 
-
-
-      // load page and wait for the 'HTML' tag
-      const response = await getPage(page, nextPageURL, "load", ".mobile-navigation");
-      stats['getPage'] = stats['getPage'] + 1;
-
-      htmldom = await getDOM(page);
-
+      currentPage = currentPage + 1;
     }
 
-    currentPage = currentPage + 1;
+    let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
+    await processItems(productDetailPageURLs, page);
+  } catch (e) {
+    console.log(e);
   }
-
-  let productDetailPageURLs = Array.from(
-    getProductDetailPageUrls(htmldom)
-  );
-  await processItems(productDetailPageURLs, page);
 }
 
 async function processItems(productDetailPageURLs, page) {
-
   for (let i = 0; i < productDetailPageURLs.length; i++) {
     // load page and wait for the 'HTML' tag
     const response = await getPage(
@@ -142,16 +141,13 @@ async function processItems(productDetailPageURLs, page) {
     const htmldom = await getDOM(page);
     const productTitle = getProductTitle(htmldom);
     const productDesc = getProductDesc(htmldom);
-    stats['getPage'] = stats['getPage'] + 1;
+    // const stars = getProductStar(htmldom);
+    stats["getPage"] = stats["getPage"] + 1;
 
-    console.log(stats);
-
-
-    break;
+    console.log(stats); 
 
   }
 
-  // let productStar = getProductStar(parsedHtml);
   // let productRegularPrice = getProductPrice(parsedHtml);
   // let productCurrentPrice = getProductPrice(parsedHtml);
   // let productDiscounted = getProductPrice(parsedHtml);
@@ -160,7 +156,6 @@ async function processItems(productDetailPageURLs, page) {
   // let productImgURL = getProductImgURL(parsedHtml);
   // let productImg = getProductImg(parsedHtml);
   // let productFetchDate = getProductFetchDate(parsedHtml);
-
 }
 
 /**
@@ -208,33 +203,37 @@ async function enableEventInterceptor(page, eventType, resType) {
 }
 
 async function getPage(page, url, waitUntil, selector) {
-  let maxRetrial = 6;
-  let retrial = 0;
+  try {
+    let maxRetrial = 6;
+    let retrial = 0;
 
-  console.log("");
-  console.log("Loading page: " + url);
-  while (retrial < maxRetrial) {
-    try {
-      const response = await page.goto(url, { waitUntil: waitUntil });
-      await page.waitForTimeout(1000);
+    console.log("");
+    console.log("Loading page: " + url);
+    while (retrial < maxRetrial) {
+      try {
+        const response = await page.goto(url, { waitUntil: waitUntil });
+        await page.waitForTimeout(1000);
 
-      if (
-        response !== null &&
-        response.status() === 200 &&
-        retrial < maxRetrial
-      ) {
-        const navigationPromise = await page.waitForSelector(selector);
+        if (
+          response !== null &&
+          response.status() === 200 &&
+          retrial < maxRetrial
+        ) {
+          const navigationPromise = await page.waitForSelector(selector);
 
-        await page.waitForResponse((response) => response.status() === 200);
-        return response;
+          await page.waitForResponse((response) => response.status() === 200);
+          return response;
+        }
+      } catch (e) {
+        // NOP
+        retrial = retrial + 1;
+        console.log(e);
+        console.log("timeout: " + url);
       }
-    } catch {
-      // NOP
-      retrial = retrial + 1;
-      console.log("timeout: " + url);
     }
+  } catch (e) {
+    console.log(e);
   }
-
   return null;
 }
 
@@ -245,12 +244,11 @@ async function getDOM(page) {
 }
 
 async function getHTML(page) {
-
   let rawhtml = null;
 
   try {
     rawhtml = await page.evaluate(() => {
-      const myNodeList = document.querySelector('html');
+      const myNodeList = document.querySelector("html");
       const html = myNodeList.innerHTML;
       return html;
     });
@@ -302,18 +300,17 @@ function getProductDetailPageUrls(htmldom) {
   );
 
   let urlList = [];
-  let classSelector = "mz-productlisting-title data-layer-productClick add-ellipsis";
+  let classSelector =
+    "mz-productlisting-title data-layer-productClick add-ellipsis";
 
   nodeList.forEach((node) => {
-
-    classAttr = node.getAttribute('class');
+    classAttr = node.getAttribute("class");
 
     if (classAttr.includes(classSelector)) {
-      url = node.getAttribute('href');
+      url = node.getAttribute("href");
       url = replaceSpace(url);
       urlList.push(baseurl + url);
-    };
-
+    }
   });
 
   return urlList;
@@ -323,13 +320,10 @@ function getProductDetailPageUrls(htmldom) {
  * @htmldom    {xmldom} name    HTML DOM
  * @return     {String}         Return product Title
  */
-function findNodeByTagnameAttributeValue(
-  htmldom,
-  tagName,
-) {
+function findNodeByTagnameAttributeValue(htmldom, tagName) {
   nodeList = Array.from(htmldom.getElementsByTagName(tagName));
   return nodeList;
-};
+}
 
 /**
  * Function get host
@@ -392,13 +386,11 @@ let findByAttributeInnerText = function (
  */
 
 async function getProductTitle(htmldom) {
-  const nodeList = findNodeByTagnameAttributeValue(
-    htmldom,
-    "h1"
-  );
+  const nodeList = findNodeByTagnameAttributeValue(htmldom, "h1");
 
-  const brandName = (nodeList[0].firstChild.nextSibling.childNodes[0].data).trim();
-  const subTtile = (nodeList[0].lastChild.data).trim();
+  const brandName =
+    nodeList[0].firstChild.nextSibling.childNodes[0].data.trim();
+  const subTtile = nodeList[0].lastChild.data.trim();
 
   const title = brandName + " " + subTtile;
 
@@ -408,32 +400,27 @@ async function getProductTitle(htmldom) {
 }
 
 /**
- * 
- * @param {*} htmldom 
- * @returns 
+ *
+ * @param {*} htmldom
+ * @returns
  */
 async function getProductDesc(htmldom) {
-
   // Select all DIV from HTML document
-  const nodeList = findNodeByTagnameAttributeValue(
-    htmldom,
-    "div"
-  );
+  const nodeList = findNodeByTagnameAttributeValue(htmldom, "div");
 
-  // Select "description-container section-margin" 
+  // Select "description-container section-margin"
   let description = null;
-  nodeList.every(node => {
-
-    if (node.getAttribute('class') == 'description-container section-margin') {
+  nodeList.every((node) => {
+    if (node.getAttribute("class") == "description-container section-margin") {
       const serializedNode = XMLSerializer.serializeToString(node);
-      description =  htmlToText(serializedNode, {
-        wordwrap: 130
+      description = htmlToText(serializedNode, {
+        wordwrap: 130,
       });
       return false;
-    };
+    }
     return true;
   });
-  
+
   console.log("Product Description: " + description);
 
   return description;
