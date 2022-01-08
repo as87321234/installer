@@ -30,7 +30,7 @@ const { htmlToText } = require('html-to-text');
 var stats = {'getPage': 0, 'getDom': 0};
 
 
-function run(url) {
+function run(urls) {
   logger.level = "debug";
   logger.debug("Some debug messages");
 
@@ -65,50 +65,11 @@ function run(url) {
       await enableImageReqInterceptor(page);
 
       // load page and wait for the 'HTML' tag
-      const response = await getPage(page, url, "load", ".mobile-navigation");
-      stats['getPage'] = stats['getPage'] + 1;
+      Array.from(urls).forEach(url => {
+        await processPage(page, url);
+        console.log(url);
+      });
 
-      // get base URL from http response
-      baseurl = getBaseURL(response);
-      console.log("baseurl: " + baseurl);
-
-      let htmldom = await getDOM(page);
-      let pagesToScrape = parseInt(getProductNumberPages(htmldom));
-      let currentPage = 1;
-      let maxRetrial = 3;
-      let retrial = 1;
-
-      while (currentPage < pagesToScrape && retrial < maxRetrial) {
-        let productDetailPageURLs = Array.from(
-          getProductDetailPageUrls(htmldom)
-        );
-
-        await processItems(productDetailPageURLs, page);
-
-
-        // Load next page
-
-        if (currentPage < pagesToScrape) {
-          // Calculate startIndex before fetching next page
-          let nextPageURL = url + "?startIndex=" + currentPage * 30;
-
-
-
-          // load page and wait for the 'HTML' tag
-          const response = await getPage(page, nextPageURL, "load", ".mobile-navigation");
-          stats['getPage'] = stats['getPage'] + 1;
-
-          htmldom = await getDOM(page);
-
-        }
-
-        currentPage = currentPage + 1;
-      }
-
-      let productDetailPageURLs = Array.from(
-        getProductDetailPageUrls(htmldom)
-      );
-      await processItems(productDetailPageURLs, page);
 
       browser.close();
 
@@ -119,9 +80,54 @@ function run(url) {
   });
 }
 
-run("https://www.homehardware.ca/en/thermostats/c/7449")
+run( ["https://www.homehardware.ca/en/thermostats/c/7449", "https://www.homehardware.ca/en/power-tools/c/1525535417299" ])
   .then(console.log)
   .catch(console.error);
+
+async function processPage(page, url) {
+  const response = await getPage(page, url, "load", ".mobile-navigation");
+  stats['getPage'] = stats['getPage'] + 1;
+
+  // get base URL from http response
+  baseurl = getBaseURL(response);
+  console.log("baseurl: " + baseurl);
+
+
+  let htmldom = await getDOM(page);
+  let pagesToScrape = parseInt(getProductNumberPages(htmldom));
+  let currentPage = 1;
+
+  while (currentPage < pagesToScrape) {
+    let productDetailPageURLs = Array.from(
+      getProductDetailPageUrls(htmldom)
+    );
+
+    await processItems(productDetailPageURLs, page);
+
+
+    // Load next page
+    if (currentPage < pagesToScrape) {
+      // Calculate startIndex before fetching next page
+      let nextPageURL = url + "?startIndex=" + currentPage * 30;
+
+
+
+      // load page and wait for the 'HTML' tag
+      const response = await getPage(page, nextPageURL, "load", ".mobile-navigation");
+      stats['getPage'] = stats['getPage'] + 1;
+
+      htmldom = await getDOM(page);
+
+    }
+
+    currentPage = currentPage + 1;
+  }
+
+  let productDetailPageURLs = Array.from(
+    getProductDetailPageUrls(htmldom)
+  );
+  await processItems(productDetailPageURLs, page);
+}
 
 async function processItems(productDetailPageURLs, page) {
 
@@ -139,6 +145,9 @@ async function processItems(productDetailPageURLs, page) {
     stats['getPage'] = stats['getPage'] + 1;
 
     console.log(stats);
+
+
+    break;
 
   }
 
