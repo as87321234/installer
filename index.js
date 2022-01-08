@@ -20,6 +20,9 @@ puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 // Dom Parser
 const { DOMParser } = require("xmldom");
 
+// HTML to Text Converter
+const { convert } = require('html-to-text');
+
 function run(url) {
   logger.level = "debug";
   logger.debug("Some debug messages");
@@ -81,14 +84,10 @@ function run(url) {
             "html"
           );
           const htmldom = await getDOM(page);
-
-          // eleastic search strucutre
-          // let esStruct = {}
-          // esStruct["productTitle "]
           const productTitle = getProductTitle(htmldom);
-        }
+          const productDesc  = getProductDesc(htmldom);
+      }
 
-        // let productDesc = getProductDesc(parsedHtml);
         // let productStar = getProductStar(parsedHtml);
         // let productRegularPrice = getProductPrice(parsedHtml);
         // let productCurrentPrice = getProductPrice(parsedHtml);
@@ -186,7 +185,7 @@ async function getPage(page, url, waitUntil, selector) {
   while (retrial < maxRetrial) {
     try {
       const response = await page.goto(url, { waitUntil: waitUntil });
-      await page.waitForTimeout(5000);
+      await page.waitForTimeout(1000);
 
       if (
         response !== null &&
@@ -361,15 +360,42 @@ let findByAttributeInnerText = function (
  * @return     {String}         Return product Title
  */
 
-async function getProductTitle(htmldom) {
+ async function getProductTitle(htmldom) {
   const nodeList = findNodeByTagnameAttributeValue(
     htmldom,
-    "h1",
-    "class",
-    "productdetails-title",
-    ""
+    "h1"
   );
 
+  const brandName = (nodeList[0].firstChild.nextSibling.childNodes[0].data).trim();
+  const subTtile = (nodeList[0].lastChild.data).trim();
+
+  const title = brandName + " " + subTtile;
+
+  console.log("Product Title: " + title);
+
+  return title;
+}
+
+/**
+ * 
+ * @param {*} htmldom 
+ * @returns 
+ */
+async function getProductDesc(htmldom) {
+  const nodeList = findNodeByTagnameAttributeValue(
+    htmldom,
+    "div"
+  );
+
+
+  nodeList.forEach( node => {
+
+    if (node.getAttribute('class') == 'description-container section-margin') {
+        console.log('found');
+    };
+
+
+  });
   const brandName = (nodeList[0].firstChild.nextSibling.childNodes[0].data).trim();
   const subTtile = (nodeList[0].lastChild.data).trim();
 

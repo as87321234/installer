@@ -2,6 +2,7 @@
   "dependencies": {
     "gulp-html-beautify": "^1.0.1",
     "html-prettify": "^1.0.3",
+    "html-to-text": "^8.1.0",
     "log4js": "^6.3.0",
     "pretty": "^2.0.0",
     "puppeteer-autoscroll-down": "^1.0.0",
