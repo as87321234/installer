@@ -156,6 +156,7 @@ async function processItems(productDetailPageURLs, page) {
   // let productImgURL = getProductImgURL(parsedHtml);
   // let productImg = getProductImg(parsedHtml);
   // let productFetchDate = getProductFetchDate(parsedHtml);
+
 }
 
 /**
