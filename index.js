@@ -1,7 +1,8 @@
 var log4js = require("log4js");
-var logger = log4js.getLogger('');
+var logger = log4js.getLogger("");
+var baseurl = null;
 
-const beautify = require('simply-beautiful');
+const beautify = require("simply-beautiful");
 
 // puppeteer-extra is a drop-in replacement for puppeteer,
 // it augments the installed puppeteer with plugin functionality.
@@ -16,13 +17,10 @@ puppeteer.use(StealthPlugin());
 var AdblockerPlugin = require("puppeteer-extra-plugin-adblocker");
 puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
-
 // Dom Parser
 const { DOMParser } = require("xmldom");
 
-
 function run(url) {
-
   logger.level = "debug";
   logger.debug("Some debug messages");
 
@@ -32,52 +30,62 @@ function run(url) {
       let revisionInfo = await browserFetcher.download("938248");
 
       const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox',
-          '--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36',
-          '--window-size=1920,1080',
-          '--no-sandbox',
-          '--disable-gpu',
-          '--no-zygote',
-          '--disable-setuid-sandbox',
-          '--disable-accelerated-2d-canvas',
-          '--disable-dev-shm-usage']
+        headless: false,
+        args: [
+          "--no-sandbox",
+          "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
+          "--window-size=1920,1080",
+          "--no-sandbox",
+          "--disable-gpu",
+          "--no-zygote",
+          "--disable-setuid-sandbox",
+          "--disable-accelerated-2d-canvas",
+          "--disable-dev-shm-usage",
+        ],
       });
 
       // Open a new page on the browser
       let page = await browser.newPage();
 
       // Ackknowledge popup request location access
-      await page.setViewport({ width: 1280, height: 800 })
+      await page.setViewport({ width: 1280, height: 800 });
       await page.setDefaultNavigationTimeout(10000);
 
       // Enable Image Request Interceptor
       await enableImageReqInterceptor(page);
 
       // load page and wait for the 'HTML' tag
-      const response = await getPage(page, url, 'load',".mobile-navigation" );
+      const response = await getPage(page, url, "load", ".mobile-navigation");
 
       // get base URL from http response
-      let baseurl = getBaseURL(response)
+      baseurl = getBaseURL(response);
       console.log("baseurl: " + baseurl);
 
-      let htmldom =  await getDOM(page, 'html');
+      let htmldom = await getDOM(page);
       let pagesToScrape = parseInt(getProductNumberPages(htmldom));
       let currentPage = 1;
       let maxRetrial = 3;
-      let retrial = 1
+      let retrial = 1;
 
       while (currentPage < pagesToScrape && retrial < maxRetrial) {
+        let productDetailPageURLs = Array.from(
+          getProductDetailPageUrls(htmldom)
+        );
 
-        let productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
-
-
-        for (let i = 0; i < productDetailPageURLs.length ; i++) {
+        for (let i = 0; i < productDetailPageURLs.length; i++) {
           // load page and wait for the 'HTML' tag
-          const response = await getPage (page, baseurl + productDetailPageURLs[i], 'load',".product-information.prod-info-new-layout");
-          const htmldom = getDOM(page,'html');
-          // let productTitle = getProductTitle(parsedHtml);
+          const response = await getPage(
+            page,
+            productDetailPageURLs[i],
+            "load",
+            "html"
+          );
+          const htmldom = await getDOM(page);
 
+          // eleastic search strucutre
+          // let esStruct = {}
+          // esStruct["productTitle "]
+          const productTitle = getProductTitle(htmldom);
         }
 
         // let productDesc = getProductDesc(parsedHtml);
@@ -94,20 +102,21 @@ function run(url) {
         // Load next page
 
         if (currentPage < pagesToScrape) {
+          // Calculate startIndex before fetching next page
+          let nextPageURL = url + "?startIndex=" + currentPage * 30;
 
-            // Calculate startIndex before fetching next page
-            let nextPageURL = url + "?startIndex=" + currentPage * 30;
-
-            // load page and wait for the 'HTML' tag
-            // const response = await getPage(page, nextPageURL, 'networkidle2');
-            const response = await getPage(baseurl + page, nextPageURL, 'load', ".mobile-navigation");
-            htmldom = await getDOM(page, 'html');
-
-
+          // load page and wait for the 'HTML' tag
+          // const response = await getPage(page, nextPageURL, 'networkidle2');
+          const response = await getPage(
+            baseurl + page,
+            nextPageURL,
+            "load",
+            ".mobile-navigation"
+          );
+          htmldom = await getDOM(page);
         }
 
         currentPage = currentPage + 1;
-
       }
 
       productDetailPageURLs = Array.from(getProductDetailPageUrls(htmldom));
@@ -118,7 +127,6 @@ function run(url) {
     } catch (e) {
       return reject(e);
     }
-
   });
 }
 
@@ -126,37 +134,36 @@ run("https://www.homehardware.ca/en/thermostats/c/7449")
   .then(console.log)
   .catch(console.error);
 
-
 /**
- * This function returns the base site url from the 
+ * This function returns the base site url from the
  * http response.
- * 
- * @param {*} response 
- * @returns 
+ *
+ * @param {*} response
+ * @returns
  */
 function getBaseURL(response) {
   return response.url().split("/")[0] + "//" + response.url().split("/")[2];
 }
 
 /**
- * This function enables a request call stop interceptor 
+ * This function enables a request call stop interceptor
  * for image.
- * 
- * @param {*} page 
- * 
+ *
+ * @param {*} page
+ *
  */
 async function enableImageReqInterceptor(page) {
-  const eventType = 'request';
-  const resType = ['image'];
+  const eventType = "request";
+  const resType = ["image"];
 
   await enableEventInterceptor(page, eventType, resType);
 }
 
 /**
- * This function enables a eventType and resource type interceptor 
- * @param {*} page 
- * @param {*} eventType 
- * @param {*} resType 
+ * This function enables a eventType and resource type interceptor
+ * @param {*} page
+ * @param {*} eventType
+ * @param {*} resType
  */
 
 async function enableEventInterceptor(page, eventType, resType) {
@@ -175,57 +182,60 @@ async function getPage(page, url, waitUntil, selector) {
   let maxRetrial = 6;
   let retrial = 0;
 
-  console.log("Loading page: " +  url);
+  console.log("Loading page: " + url);
   while (retrial < maxRetrial) {
-
     try {
-
       const response = await page.goto(url, { waitUntil: waitUntil });
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(5000);
 
       if (
         response !== null &&
         response.status() === 200 &&
         retrial < maxRetrial
       ) {
-        const navigationPromise = await page.waitForSelector(
-          selector
-        );
+        const navigationPromise = await page.waitForSelector(selector);
 
         await page.waitForResponse((response) => response.status() === 200);
         return response;
       }
-
     } catch {
-       // NOP 
-       retrial = retrial + 1;
-       console.log("timeout: " + url)
+      // NOP
+      retrial = retrial + 1;
+      console.log("timeout: " + url);
     }
   }
 
   return null;
 }
 
-async function getDOM(page, selector) {
-
-  let rawhtml = await getHTML(page, selector);
-  let htmldom = transformHtmlToDom(rawhtml);
-  return  htmldom;
+async function getDOM(page) {
+  let rawhtml = await getHTML(page);
+  let htmldom = await transformHtmlToDom(rawhtml);
+  return htmldom;
 }
 
-async function getHTML(page, selector) {
+async function getHTML(page) {
 
-  let rawhtml = await page.evaluate((selector) => {
-    const myNodeList = document.querySelector(selector);
-    let rawhtml = myNodeList.innerHTML;
-    return rawhtml;
+  let rawhtml = null;
 
-  }, selector);
+  try {
+    rawhtml = await page.evaluate( () => {
+      const myNodeList = document.querySelector('html');
+      const html = myNodeList.innerHTML;
+      return html;
+  });
 
+    // let rawhtml = await page.evaluate(() => {
+    //   const myNodeList = document.querySelector('html');
+    //   const html = myNodeList.innerHTML;
+    //   return html;
+    // });
+  } catch (e) {
+    console.log(e);
+  }
   // console.log(beautify.html(rawhtml));
 
   return rawhtml;
-
 }
 
 /**
@@ -233,7 +243,7 @@ async function getHTML(page, selector) {
  * @rawhtml    {object} rawhtml    HTML DOM
  * @return     {object}            Return product Title
  */
-function transformHtmlToDom(rawhtml) {
+async function transformHtmlToDom(rawhtml) {
   let htmldom = new DOMParser().parseFromString(rawhtml, "text/html");
   return htmldom;
 }
@@ -254,54 +264,49 @@ function getProductNumberPages(htmldom) {
 }
 
 function getProductDetailPageUrls(htmldom) {
-  partUrls = findNodeByTagnameAttributeValue(
+  const nodeList = findNodeByTagnameAttributeValue(
     htmldom,
     "a",
     "class",
-    "mz-productlisting-title data-layer-productClick add-ellipsis",
     "href"
   );
-  return partUrls;
+
+  let urlList = [];
+  let classSelector = "mz-productlisting-title data-layer-productClick add-ellipsis";
+
+  nodeList.forEach((node) => {
+
+    classAttr = node.getAttribute('class');
+
+    if (classAttr.includes(classSelector)) {  
+      url = node.getAttribute('href');
+      url = replaceSpace(url);
+      urlList.push(baseurl + url);
+    };
+
+  });
+  
+  return urlList; 
 }
 /**
  * Function return the product detailed page
  * @htmldom    {xmldom} name    HTML DOM
  * @return     {String}         Return product Title
  */
-function findNodeByTagnameAttributeValue(
+ function findNodeByTagnameAttributeValue(
   htmldom,
   tagName,
-  searchAttribute,
-  searchValue,
-  secondAttribute,
-  pos = 1
-) {
-  elementList = Array.from(htmldom.getElementsByTagName(tagName));
-
-  indx = 1;
-  urls = [];
-  elementList.forEach((node) => {
-    result = node.getAttribute(searchAttribute);
-
-    if (result.includes(searchValue)) {
-      value = node.getAttribute(secondAttribute);
-      value = replaceSpace(value);
-      urls.push(value);
-    }
-
-    //    'a.mz-productlisting-title.data-layer-productClick'));
-  });
-
-  console.log("href: " + urls);
-  return urls;
-}
+  ) {
+    nodeList = Array.from(htmldom.getElementsByTagName(tagName));
+    return nodeList;
+};
 
 /**
  * Function get host
  * @htmldom    {xmldom} name    HTML DOM
  * @return     {String}         Return product Title
  */
- let getSiteHostname = function (url) {
+let getSiteHostname = function (url) {
   result = findAttribute(htmldom, "a", "href", 1);
   return url.replace(" ", "%20");
 };
@@ -355,11 +360,25 @@ let findByAttributeInnerText = function (
  * @htmldom    {xmldom} name    HTML DOM
  * @return     {String}         Return product Title
  */
-let getProductTitle = function (htmldom) {
-  result = findAttribute(htmldom, "a", "title", 1);
-  console.log("title: " + result);
-  return result;
-};
+
+async function getProductTitle(htmldom) {
+  const nodeList = findNodeByTagnameAttributeValue(
+    htmldom,
+    "h1",
+    "class",
+    "productdetails-title",
+    ""
+  );
+
+  const brandName = (nodeList[0].firstChild.nextSibling.childNodes[0].data).trim();
+  const subTtile = (nodeList[0].lastChild.data).trim();
+
+  const title = brandName + " " + subTtile;
+
+  console.log("Product Title: " + title);
+
+  return title;
+}
 
 /**
  * Function return the product Title
@@ -370,4 +389,3 @@ let getProductImage = function (htmldom) {
   let tagImg = htmldom.getElementsByTagName("img");
   return tagImg[1].attribute[0];
 };
-

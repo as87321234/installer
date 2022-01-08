@@ -1,10 +1,18 @@
 {
   "dependencies": {
+    "gulp-html-beautify": "^1.0.1",
+    "html-prettify": "^1.0.3",
     "log4js": "^6.3.0",
+    "pretty": "^2.0.0",
+    "puppeteer-autoscroll-down": "^1.0.0",
     "puppeteer-extra": "^3.2.3",
     "puppeteer-extra-plugin-adblocker": "^2.12.0",
     "puppeteer-extra-plugin-stealth": "^2.9.0",
     "react-dom": "^17.0.2",
+    "rehype-format": "^4.0.1",
+    "simply-beautiful": "^0.2.10",
+    "tidy-html5": "^0.1.1",
+    "victorica": "^0.0.2",
     "xml2json": "^0.12.0",
     "xmldom": "^0.6.0"
   }
